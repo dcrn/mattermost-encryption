@@ -101,16 +101,14 @@ function isEncryptedNode(node) {
 function decryptMessageNode(node) {
 	node.classList.add("decrypted");
 
-	// Ignore temporary elements added by React
-	if (node.id.indexOf(":") >= 0) {
-		if (isEncryptedNode(node)) {
-			node.querySelector(".post-message__text p").childNodes[0].nodeValue = lastSentMessage;
-		}
-		return;
-	}
-
 	if (isEncryptedNode(node)) {
 		var textNode = node.querySelector(".post-message__text p").childNodes[0];
+		if (node.id.indexOf(":") >= 0) {
+			// Ignore temporary elements added by React
+			textNode.nodeValue = lastSentMessage;
+			return;
+		}
+
 		node.classList.add("secure-message");
 		if (node.classList.contains("current--user")) {
 			if (lastSentMessage === null)
