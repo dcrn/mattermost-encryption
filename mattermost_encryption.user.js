@@ -4,7 +4,7 @@
 // @version      0.1
 // @description  try to take over the world!
 // @author       You
-// @match        http://192.168.2.104:8065/hello/channels/abc
+// @match        http://localhost:8065/*
 // @grant        none
 // @require      https://raw.githubusercontent.com/travist/jsencrypt/master/bin/jsencrypt.min.js
 // ==/UserScript==
@@ -84,6 +84,18 @@ function attachToInputBox() {
 	});
 }
 
+function attachToChannelHeader() {
+	var channelDropdown = document.querySelector("#channel-header ul.dropdown-menu");
+
+	var addKeyLI = document.createElement("LI");
+	var addKeyLink = document.createElement("A");
+	var addKeyText = document.createTextNode("Set public key");
+	addKeyLink.appendChild(addKeyText);
+	addKeyLI.appendChild(addKeyLink);
+
+	channelDropdown.appendChild(addKeyLI);
+}
+
 function isEncryptedNode(node) {
 	var pNode = node.querySelector(".post-message__text p");
 	if (pNode.childNodes.length != 1 || pNode.childNodes[0].nodeName !== "#text")
@@ -125,14 +137,23 @@ function decryptMessageNode(node) {
 
 (function() {
 	'use strict';
-	var findInputBoxObserver = new MutationObserver(function(mutations) {
-		var inputBox = document.querySelector("#post_textbox");
-		if (inputBox !== null) {
-			findInputBoxObserver.disconnect();
-			attachToInputBox();
+	var attachments = {
+		"#post_textbox": attachToInputBox,
+		"#channel-header ul.dropdown-menu": attachToChannelHeader
+	};
+	var attachmentObserver = new MutationObserver(function(mutations) {
+		for (var query in attachments) {
+			if (document.querySelector(query) !== null) {
+				attachments[query]();
+				delete attachments[query];
+			}
+		}
+
+		if (attachments.length === 0) {
+			attachmentObserver.disconnect();
 		}
 	});
-	findInputBoxObserver.observe(document.documentElement, {childList: true, subtree: true});
+	attachmentObserver.observe(document.documentElement, {childList: true, subtree: true});
 
 	var msgReceivedObserver = new MutationObserver(function(mutations) {
 		var newMessages = document.querySelectorAll("div.post:not(.decrypted)");
