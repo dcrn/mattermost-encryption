@@ -5,9 +5,93 @@
 // @description  try to take over the world!
 // @author       You
 // @match        http://localhost:8065/*
-// @grant        none
+// @grant        GM_getValue
+// @grant        GM_setValue
 // @require      https://raw.githubusercontent.com/travist/jsencrypt/master/bin/jsencrypt.min.js
 // ==/UserScript==
+
+
+function EncryptionHandler() {
+    this.encryption = new JSEncrypt();
+    this.decryption = new JSEncrypt();
+}
+EncryptionHandler.prototype.setDecryptionKey = function(key) {
+    this.decryption.setPrivateKey(key);
+};
+EncryptionHandler.prototype.setEncryptionKey = function(key) {
+    this.encryption.setPublicKey(key);
+};
+EncryptionHandler.prototype.encrypt = function(msg) {
+    return this.encryption.encrypt(msg);
+};
+EncryptionHandler.prototype.decrypt = function(msg) {
+    return this.decryption.decrypt(msg);
+};
+
+function MessageHandler() {
+    this.channel = null;
+    this.selfData = null;
+    this.lastSentMessage = null;
+    this.encryptionHandler = new EncryptionHandler();
+}
+MessageHandler.prototype.setSelfData = function(selfData) {
+    this.selfData = selfData;
+    if (selfData === null)
+        return;
+
+    if (selfData.privateKey !== null)
+        this.encryptionHandler.setDecryptionKey(selfData.privateKey);
+    else
+        this.encryptionHandler.setDecryptionKey(null);
+};
+MessageHandler.prototype.setChannel = function(channel) {
+    this.channel = channel;
+    if (channel === null)
+        return;
+
+    if (channel.publicKey !== null)
+        this.encryptionHandler.setEncryptionKey(channel.publicKey);
+    else
+        this.encryptionHandler.setEncryptionKey(null);
+};
+MessageHandler.prototype.canSendEncryptedMessage = function() {
+    return this.channel !== null && this.channel.enabled !== false && this.channel.publicKey !== null;
+};
+MessageHandler.prototype.canReceiveEncryptedMessage = function() {
+    return this.selfData !== null && this.selfData.privateKey !== null;
+};
+MessageHandler.prototype.processInputMessage = function(msg) {
+    if (!this.canSendEncryptedMessage())
+        return msg;
+
+    this.lastSentMessage = msg;
+    return this.encryptionHandler.encrypt(msg);
+};
+MessageHandler.prototype.processOwnMessage = function(msg) {
+    if (this.isEncryptedMessage(msg)) {
+        if (this.lastSentMessage !== null) {
+            msg = this.lastSentMessage;
+            this.lastSentMessage = null;
+            return msg;
+        }
+        return "(unknown)";
+    }
+    return msg;
+};
+MessageHandler.prototype.processReceivedMessage = function(msg) {
+    if (this.isEncryptedMessage(msg)) {
+        if (this.canReceiveEncryptedMessage()) {
+            return this.encryptionHandler.decrypt(msg);
+        }
+        return "(unknown)";
+    }
+    return msg;
+};
+
+
+
+
+
 
 var myRsa = new JSEncrypt();
 myRsa.setPrivateKey(`-----BEGIN RSA PRIVATE KEY-----
@@ -52,114 +136,131 @@ wwIDAQAB
 var lastSentMessage = null;
 
 function encryptMessage(msg) {
-	console.log("Encrypting message: " + msg);
-	var encrypted = theirRsa.encrypt(msg);
-	console.log("Encrypted: " + encrypted);
-	return encrypted;
+    console.log("Encrypting message: " + msg);
+    var encrypted = theirRsa.encrypt(msg);
+    console.log("Encrypted: " + encrypted);
+    return encrypted;
 }
 
 function decryptMessage(msg) {
-	console.log("Decrypting message: " + msg);
-	var decrypted = myRsa.decrypt(msg);
-	console.log("Decrypted: " + decrypted);
+    console.log("Decrypting message: " + msg);
+    var decrypted = myRsa.decrypt(msg);
+    console.log("Decrypted: " + decrypted);
 
-	if (decrypted === null) {
-		return msg;
-	}
-	else {
-		return decrypted;
-	}
+    if (decrypted === null) {
+        return msg;
+    }
+    else {
+        return decrypted;
+    }
 }
 
 function attachToInputBox() {
-	var inputBox = document.querySelector("#post_textbox");
+    var inputBox = document.querySelector("#post_textbox");
 
-	inputBox.addEventListener("keydown", function(event) {
-		if (event.keycode === 13 || event.which === 13) {
-			lastSentMessage = event.target.value;
-			var newMsg = encryptMessage(event.target.value);
-			event.target.value = newMsg;
-			event.target.dispatchEvent(new Event("input", {bubbles: true, target: event.target, data:newMsg}));
-		}
-	});
+    inputBox.addEventListener("keydown", function(event) {
+        if (event.keycode === 13 || event.which === 13) {
+            lastSentMessage = event.target.value;
+            var newMsg = encryptMessage(event.target.value);
+            event.target.value = newMsg;
+            event.target.dispatchEvent(new Event("input", {bubbles: true, target: event.target, data:newMsg}));
+        }
+    });
 }
 
 function attachToChannelHeader() {
-	var channelDropdown = document.querySelector("#channel-header ul.dropdown-menu");
+    var channelDropdown = document.querySelector("#channel-header ul.dropdown-menu");
 
-	var addKeyLI = document.createElement("LI");
-	var addKeyLink = document.createElement("A");
-	var addKeyText = document.createTextNode("Set public key");
-	addKeyLink.appendChild(addKeyText);
-	addKeyLI.appendChild(addKeyLink);
+    var addKeyLI = document.createElement("LI");
+    var addKeyLink = document.createElement("A");
+    var addKeyText = document.createTextNode("MM-E Settings");
+    addKeyLink.appendChild(addKeyText);
+    addKeyLI.appendChild(addKeyLink);
 
-	channelDropdown.appendChild(addKeyLI);
+    addKeyLink.addEventListener("click", function(event) {
+        window.console.log("Clicked add key");
+    });
+
+    channelDropdown.appendChild(addKeyLI);
+}
+
+function getChannelSettings() {
+    var channelName = window.location.pathname;
+    return {
+        "publicKey": GM_getValue(channelName + "|publicKey", null)
+    };
+}
+
+function getChannelSettings(settings) {
+    var channelName = window.location.pathname;
+    GM_setValue(channelName + "|publicKey", settings.publicKey);
 }
 
 function isEncryptedNode(node) {
-	var pNode = node.querySelector(".post-message__text p");
-	if (pNode.childNodes.length != 1 || pNode.childNodes[0].nodeName !== "#text")
-		return false;
+    var pNode = node.querySelector(".post-message__text p");
 
-	try {
-		atob(pNode.childNodes[0].nodeValue);
-		return true;
-	}
-	catch(ex) {
-		return false;
-	}
+    if (pNode === null || pNode.childNodes.length != 1 || pNode.childNodes[0].nodeName !== "#text")
+        return false;
+
+    try {
+        atob(pNode.childNodes[0].nodeValue);
+        return true;
+    }
+    catch(ex) {
+        return false;
+    }
 }
 
 function decryptMessageNode(node) {
-	node.classList.add("decrypted");
+    node.classList.add("decrypted");
 
-	if (isEncryptedNode(node)) {
-		var textNode = node.querySelector(".post-message__text p").childNodes[0];
-		if (node.id.indexOf(":") >= 0) {
-			// Ignore temporary elements added by React
-			textNode.nodeValue = lastSentMessage;
-			return;
-		}
+    if (isEncryptedNode(node)) {
+        var textNode = node.querySelector(".post-message__text p").childNodes[0];
+        if (node.classList.contains("current--user") && node.id.indexOf(":") >= 0) {
+            // Ignore temporary elements added by React
+            textNode.nodeValue = lastSentMessage;
+            return;
+        }
 
-		node.classList.add("secure-message");
-		if (node.classList.contains("current--user")) {
-			if (lastSentMessage === null)
-				textNode.nodeValue = "(unknown)";
-			else
-				textNode.nodeValue = lastSentMessage;
+        node.classList.add("secure-message");
+        if (node.classList.contains("current--user")) {
+            if (lastSentMessage === null)
+                textNode.nodeValue = "(unknown)";
+            else
+                textNode.nodeValue = lastSentMessage;
 
-			lastSentMessage = null;
-		} else {
-			textNode.nodeValue = decryptMessage(textNode.nodeValue);
-		}
-	}
+            lastSentMessage = null;
+        } else {
+            textNode.nodeValue = decryptMessage(textNode.nodeValue);
+        }
+    }
 }
 
 (function() {
-	'use strict';
-	var attachments = {
-		"#post_textbox": attachToInputBox,
-		"#channel-header ul.dropdown-menu": attachToChannelHeader
-	};
-	var attachmentObserver = new MutationObserver(function(mutations) {
-		for (var query in attachments) {
-			if (document.querySelector(query) !== null) {
-				attachments[query]();
-				delete attachments[query];
-			}
-		}
+    'use strict';
+    var attachments = {
+        "#post_textbox": attachToInputBox,
+        "#channel-header ul.dropdown-menu": attachToChannelHeader
+    };
+    var attachmentObserver = new MutationObserver(function(mutations) {
+        for (var query in attachments) {
+            if (document.querySelector(query) !== null) {
+                attachments[query]();
+                delete attachments[query];
+            }
+        }
 
-		if (attachments.length === 0) {
-			attachmentObserver.disconnect();
-		}
-	});
-	attachmentObserver.observe(document.documentElement, {childList: true, subtree: true});
+        if (attachments.length === 0) {
+            attachmentObserver.disconnect();
+        }
+    });
+    attachmentObserver.observe(document.documentElement, {childList: true, subtree: true});
 
-	var msgReceivedObserver = new MutationObserver(function(mutations) {
-		var newMessages = document.querySelectorAll("div.post:not(.decrypted)");
-		if (newMessages.length !== 0) {
-			newMessages.forEach(decryptMessageNode);
-		}
-	});
-	msgReceivedObserver.observe(document.documentElement, {childList: true, subtree: true});
+    var msgReceivedObserver = new MutationObserver(function(mutations) {
+        var newMessages = document.querySelectorAll("div.post:not(.decrypted)");
+        if (newMessages.length !== 0) {
+            newMessages.forEach(decryptMessageNode);
+        }
+    });
+    msgReceivedObserver.observe(document.documentElement, {childList: true, subtree: true});
 })();
