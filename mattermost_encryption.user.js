@@ -7,6 +7,7 @@
 // @match        http://localhost:8065/*
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_addStyle
 // @require      https://raw.githubusercontent.com/travist/jsencrypt/master/bin/jsencrypt.min.js
 // ==/UserScript==
 
@@ -28,44 +29,32 @@ EncryptionHandler.prototype.decrypt = function(msg) {
     return this.decryption.decrypt(msg);
 };
 
+
 function MessageHandler() {
     this.channel = null;
     this.selfData = null;
     this.lastSentMessage = null;
     this.encryptionHandler = new EncryptionHandler();
 }
-MessageHandler.prototype.setSelfData = function(selfData) {
-    this.selfData = selfData;
-    if (selfData === null)
-        return;
+MessageHandler.prototype.updateSettings = function(settings) {
+	window.console.log("Updating message handler settings:");
+	window.console.log(settings);
 
-    if (selfData.privateKey !== null)
-        this.encryptionHandler.setDecryptionKey(selfData.privateKey);
-    else
-        this.encryptionHandler.setDecryptionKey(null);
-};
-MessageHandler.prototype.setChannel = function(channel) {
-    this.channel = channel;
-    if (channel === null)
-        return;
+	this.enabled = settings.enabled !== null ? settings.enabled : false;
+	this.privateKey = settings.privateKey;
+	this.publicKey = settings.publicKey;
+	this.encryptionHandler.setDecryptionKey(this.privateKey);
+	this.encryptionHandler.setEncryptionKey(this.publicKey);
 
-    if (channel.publicKey !== null)
-        this.encryptionHandler.setEncryptionKey(channel.publicKey);
-    else
-        this.encryptionHandler.setEncryptionKey(null);
-};
-MessageHandler.prototype.canSendEncryptedMessage = function() {
-    return this.channel !== null && this.channel.enabled !== false && this.channel.publicKey !== null;
-};
-MessageHandler.prototype.canReceiveEncryptedMessage = function() {
-    return this.selfData !== null && this.selfData.privateKey !== null;
+	if (this.privateKey === null || this.publicKey === null)
+		this.enabled = false;
 };
 MessageHandler.prototype.processInputMessage = function(msg) {
-    if (!this.canSendEncryptedMessage())
-        return msg;
+    if (!this.enabled && this.publicKey !== null)
+        return null;
 
     this.lastSentMessage = msg;
-    return this.encryptionHandler.encrypt(msg);
+    return "AA//" + this.encryptionHandler.encrypt(msg);
 };
 MessageHandler.prototype.processOwnMessage = function(msg) {
     if (this.isEncryptedMessage(msg)) {
@@ -76,191 +65,326 @@ MessageHandler.prototype.processOwnMessage = function(msg) {
         }
         return "(unknown)";
     }
-    return msg;
+    return null;
 };
 MessageHandler.prototype.processReceivedMessage = function(msg) {
     if (this.isEncryptedMessage(msg)) {
-        if (this.canReceiveEncryptedMessage()) {
+        if (this.privateKey) {
             return this.encryptionHandler.decrypt(msg);
         }
         return "(unknown)";
     }
-    return msg;
+    return null;
 };
-
-
-
-
-
-
-var myRsa = new JSEncrypt();
-myRsa.setPrivateKey(`-----BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEA8KFclmpU+2oFHKfgoYM4Drw87qZIacNfaz/BieZ0aVSYlBym
-VodBrJeYzao+UpxuKrzMWBBZg3QhRCnbaNAKmmNfSheG02guY8ojOjoe/P/RTX0q
-a8E57O0d52asqQY4A2d4cCEZzEmDnZIC1NSPaXdgWzgphgzgrs2dLqj4UhM+BnpK
-WKKRUyJMsTY0aV36Xscy1htqQw26aDeKUrikOQeQKbIba952ZIZ7LEb1cYnplIfW
-gIio5kDfj1HESIASkmKTSWAUTf7C79jtbu3vLAZI4fA8QdW7kQb1XNv3WXM73LIt
-DimMnJZgTAP+PW7ZLT5DHWRyYGNX/5t3KWw3wwIDAQABAoIBAQCzQiItU61XVhXU
-0SNAbvZ107k4t9s+HvOYe/h7+JhEV2cK/4TS9RPxtUV6ARdIh4xyfg9kk1l72ilm
-FCCFpmYfuWOlWH1yRCw63rz7hYzMQO71YQcXGu1CGSqr1gtOJ3nW32ATeDU1wJYx
-7jH5xxfHI80+Z0pXuIQw9K/hsLK8wHMFTk0Thp4e1/nCrPHIlGsD48odjWW1SgyD
-FH94clh6YaUAewnS1SohgQSKr3vCcnPigF1pWcw1d8i3JwfJ+0fkQ6/TYK9HiTmU
-jnGF2bMKQ7A1ggmjQVDOuOpTobj4dG/QOZkyUaxzsrCUHJW3Qjz3pWoITKgl4BBL
-B+53VQahAoGBAP9Mc3YDvCeqNcjWKVzboi/HbjKxVrhjl5F1VwWeW6X5CnTheQ/g
-Zu99ATjVHIzETiln+C4CxwQCCQ3ZmQQnrj5U+fqqFtfLqTVjBa0OwN65yJrVaQEM
-Ef/9ax//iA/m2pzzW4rt0veolYSz8Ge7s6jsALG9XaZdUMwkiI2mI6v7AoGBAPFK
-mDWxzoEJ0u8VJRXxmdYaubu6ucAMPh45m2fZgmqsCVEXNL5pvDu1YuSLr08sKEjx
-BlSTPPQVTt5qT3nu0ngtHSbU9M0tWtJzim3Fz3OyNVG25mU+9O1hKCfPovk2OaX8
-neKyF/BBxP8BNA6K6woypqZp5tnXd1DUKWYqg1DZAoGBALQIrcOjjqRKG/OtUy3w
-lMcs1EFbXdRaJyCkpuGHcwnwPbd+6WiQzwZEGQCDCMccCCKa9yE7RC1HYisqMAYG
-FZJPSpnCKKm1LXZAhlgr90cZrKXDqXDbmjXz9/9wq/rKyY+07fFjFUsgz4/tdLMy
-YtfU1giBifEwDTJo8QMzDiTRAoGAGJY3SFFj73YmzkHjU4cY295BSsXOI6mbssy/
-7ycUyPXaxS6OK1Du406qUwuAw5qGSFh3Aqs2LND3BmbizlPtkl1WeRx+DWIvvP4U
-/vaHGwzvrfHrLCnsHzwlMVlRC//gg+9nzy/CjLLG9g0TVuAE7zcWECL+aPgxqkTU
-Kxrt4pECgYAUy2aPl6Av36G/8BVir8w+5Wxhs1qUSBVPUjb+RskXIAiIg9t2jFD5
-6iPDypJmtE9vbh4T0HdQ9IuJuywt08ebntNTt8ZKhcK17qMHcRPiaKk9chmHTCVu
-ys5Op0eHNdv/Cvnmv//u2Q93os9pULh0/TMDDAcsWwKFNw+pYLxC/A==
------END RSA PRIVATE KEY-----`);
-
-var theirRsa = new JSEncrypt();
-theirRsa.setPublicKey(`-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA8KFclmpU+2oFHKfgoYM4
-Drw87qZIacNfaz/BieZ0aVSYlBymVodBrJeYzao+UpxuKrzMWBBZg3QhRCnbaNAK
-mmNfSheG02guY8ojOjoe/P/RTX0qa8E57O0d52asqQY4A2d4cCEZzEmDnZIC1NSP
-aXdgWzgphgzgrs2dLqj4UhM+BnpKWKKRUyJMsTY0aV36Xscy1htqQw26aDeKUrik
-OQeQKbIba952ZIZ7LEb1cYnplIfWgIio5kDfj1HESIASkmKTSWAUTf7C79jtbu3v
-LAZI4fA8QdW7kQb1XNv3WXM73LItDimMnJZgTAP+PW7ZLT5DHWRyYGNX/5t3KWw3
-wwIDAQAB
------END PUBLIC KEY-----`);
-
-var lastSentMessage = null;
-
-function encryptMessage(msg) {
-    console.log("Encrypting message: " + msg);
-    var encrypted = theirRsa.encrypt(msg);
-    console.log("Encrypted: " + encrypted);
-    return encrypted;
-}
-
-function decryptMessage(msg) {
-    console.log("Decrypting message: " + msg);
-    var decrypted = myRsa.decrypt(msg);
-    console.log("Decrypted: " + decrypted);
-
-    if (decrypted === null) {
-        return msg;
-    }
-    else {
-        return decrypted;
-    }
-}
-
-function attachToInputBox() {
-    var inputBox = document.querySelector("#post_textbox");
-
-    inputBox.addEventListener("keydown", function(event) {
-        if (event.keycode === 13 || event.which === 13) {
-            lastSentMessage = event.target.value;
-            var newMsg = encryptMessage(event.target.value);
-            event.target.value = newMsg;
-            event.target.dispatchEvent(new Event("input", {bubbles: true, target: event.target, data:newMsg}));
-        }
-    });
-}
-
-function attachToChannelHeader() {
-    var channelDropdown = document.querySelector("#channel-header ul.dropdown-menu");
-
-    var addKeyLI = document.createElement("LI");
-    var addKeyLink = document.createElement("A");
-    var addKeyText = document.createTextNode("MM-E Settings");
-    addKeyLink.appendChild(addKeyText);
-    addKeyLI.appendChild(addKeyLink);
-
-    addKeyLink.addEventListener("click", function(event) {
-        window.console.log("Clicked add key");
-    });
-
-    channelDropdown.appendChild(addKeyLI);
-}
-
-function getChannelSettings() {
-    var channelName = window.location.pathname;
-    return {
-        "publicKey": GM_getValue(channelName + "|publicKey", null)
-    };
-}
-
-function getChannelSettings(settings) {
-    var channelName = window.location.pathname;
-    GM_setValue(channelName + "|publicKey", settings.publicKey);
-}
-
-function isEncryptedNode(node) {
-    var pNode = node.querySelector(".post-message__text p");
-
-    if (pNode === null || pNode.childNodes.length != 1 || pNode.childNodes[0].nodeName !== "#text")
-        return false;
-
+MessageHandler.prototype.isEncryptedMessage = function(msg) {
     try {
-        atob(pNode.childNodes[0].nodeValue);
-        return true;
+        atob(msg);
+        return msg.substr(0, 4) === "AA//";
     }
     catch(ex) {
         return false;
     }
+};
+
+
+function ChannelEncryptionService() {
+	this.channelName = null;
+	this.settings = {privateKey: null, publicKey: null, enabled: false};
+	this.messageHandler = new MessageHandler();
+}
+ChannelEncryptionService.prototype.changeChannel = function(channelName) {
+	if (this.channelName === channelName)
+		return;
+
+	this.channelName = channelName;
+	this.loadChannelSettings();
+	this.messageHandler.updateSettings(this.settings);
+};
+ChannelEncryptionService.prototype.loadChannelSettings = function() {
+	if (this.channelName === null) {
+		this.settings = {};
+		return;
+	}
+
+	this.settings.enabled = GM_getValue(this.channelName + "/enabled", null);
+	this.settings.publicKey = GM_getValue(this.channelName + "/publicKey", null);
+	this.settings.privateKey = GM_getValue(this.channelName + "/privateKey", null);
+};
+ChannelEncryptionService.prototype.getMessageHandler = function() {
+	return this.messageHandler;
+};
+ChannelEncryptionService.prototype.getEnabled = function() {
+	return this.settings.enabled;
+};
+ChannelEncryptionService.prototype.setEnabled = function(enabled) {
+	if (enabled === true)
+		this.settings.enabled = enabled;
+	else
+		this.settings.enabled = false;
+
+	GM_setValue(this.channelName + "/enabled", this.settings.enabled);
+	this.messageHandler.updateSettings(this.settings);
+};
+ChannelEncryptionService.prototype.getPublicKey = function() {
+	return this.settings.publicKey;
+};
+ChannelEncryptionService.prototype.setPublicKey = function(publicKey) {
+	this.settings.publicKey = publicKey;
+	if (publicKey !== null && publicKey.length === 0)
+		this.settings.publicKey = null;
+
+	GM_setValue(this.channelName + "/publicKey", this.settings.publicKey);
+	this.messageHandler.updateSettings(this.settings);
+};
+ChannelEncryptionService.prototype.getPrivateKey = function() {
+	return this.settings.privateKey;
+};
+ChannelEncryptionService.prototype.setPrivateKey = function(privateKey) {
+	this.settings.privateKey = privateKey;
+	if (privateKey !== null && privateKey.length === 0)
+		this.settings.privateKey = null;
+
+	GM_setValue(this.channelName + "/privateKey", this.settings.privateKey);
+	this.messageHandler.updateSettings(this.settings);
+};
+
+
+var encryptionService = new ChannelEncryptionService();
+var lastPlaintextMessage = null;
+
+function onMessageSend(inputElement) {
+	lastPlaintextMessage = inputElement.value;
+
+	var newMsg = encryptionService
+		.getMessageHandler()
+		.processInputMessage(inputElement.value);
+
+	if (newMsg !== null) {
+		inputElement.value = newMsg;
+		inputElement.dispatchEvent(new Event(
+			"input", 
+			{bubbles: true, target: inputElement, data:newMsg}
+		));
+	}
 }
 
-function decryptMessageNode(node) {
-    node.classList.add("decrypted");
+function onMessageReceive(messageElement) {
+	messageElement.classList.add("mme-processed");
+	var textElement = getTextElement(messageElement);
+	if (textElement === null)
+		return;
 
-    if (isEncryptedNode(node)) {
-        var textNode = node.querySelector(".post-message__text p").childNodes[0];
-        if (node.classList.contains("current--user") && node.id.indexOf(":") >= 0) {
-            // Ignore temporary elements added by React
-            textNode.nodeValue = lastSentMessage;
-            return;
-        }
+	var msg = textElement.nodeValue;
+	var newMsg = null;
+	if (messageElement.id.indexOf(":") >= 0) {
+		textElement.nodeValue = lastPlaintextMessage;
+		return;
+	} else if (messageElement.classList.contains("current--user")) {
+		newMsg = encryptionService.getMessageHandler().processOwnMessage(msg);
+	} else {
+		newMsg = encryptionService.getMessageHandler().processReceivedMessage(msg);
+	}
 
-        node.classList.add("secure-message");
-        if (node.classList.contains("current--user")) {
-            if (lastSentMessage === null)
-                textNode.nodeValue = "(unknown)";
-            else
-                textNode.nodeValue = lastSentMessage;
-
-            lastSentMessage = null;
-        } else {
-            textNode.nodeValue = decryptMessage(textNode.nodeValue);
-        }
-    }
+	if (newMsg !== null) {
+		messageElement.classList.add("secure");
+		textElement.nodeValue = newMsg;
+	}
 }
 
-(function() {
-    'use strict';
+function getTextElement(messageElement) {
+    var textElement = messageElement.querySelector(".post-message__text p");
+
+    if (textElement === null || textElement.childNodes.length != 1 || textElement.childNodes[0].nodeName !== "#text")
+        return null;
+
+    return textElement.childNodes[0];
+}
+
+
+function attachInputEvent(element) {
+	element.addEventListener("keydown", function(keyEvent) {
+		if (keyEvent.keycode === 13 || keyEvent.which === 13) {
+			onMessageSend(keyEvent.target);
+		}
+	});
+
+	return true;
+}
+
+function attachToggleButton(element) {
+	var button = document.createElement("SPAN");
+	button.classList.add("fa");
+	button.classList.add("fa-user-secret");
+	button.classList.add("icon--emoji-picker");
+
+	if (encryptionService.getEnabled())
+		button.classList.add("mme-enabled");
+
+    button.addEventListener("click", function(event) {
+    	encryptionService.setEnabled(!encryptionService.getEnabled());
+    	button.classList.toggle("mme-enabled", encryptionService.getEnabled());
+	});
+
+    element.appendChild(button);
+}
+
+function attachSettingsButton(element) {
+	var button = document.createElement("SPAN");
+	button.classList.add("fa");
+	button.classList.add("fa-puzzle-piece");
+	button.classList.add("icon--emoji-picker");
+
+    var settingsModal = buildSettingsModal();
+    settingsModal.container.classList.add("hidden");
+    document.body.appendChild(settingsModal.container);
+
+    button.addEventListener("click", function(event) {
+    	if (settingsModal.container.classList.toggle("hidden") === false) {
+	    	var privKey = encryptionService.getPrivateKey();
+	    	if (privKey === null)
+	    		privKey = "";
+	    	var pubKey = encryptionService.getPublicKey();
+	    	if (pubKey === null)
+	    		pubKey = "";
+
+	    	settingsModal.privKeyInput.value = privKey;
+	    	settingsModal.pubKeyInput.value = pubKey;
+	    }
+    });
+
+    element.appendChild(button);
+}
+
+function buildSettingsModal() {
+	var container = document.createElement("DIV");
+	var pubKeyInput = document.createElement("TEXTAREA");
+	var privKeyInput = document.createElement("TEXTAREA");
+	var pubKeyUpdate = document.createElement("BUTTON");
+	var privKeyUpdate = document.createElement("BUTTON");
+
+	container.classList.add("mme-settings-modal");
+
+	privKeyUpdate.addEventListener("click", function(event) {
+		event.preventDefault();
+		var newKey = privKeyInput.value;
+		if (newKey === null || newKey === "")
+			newKey = null;
+
+		encryptionService.setPrivateKey(newKey);
+	});
+
+	pubKeyUpdate.addEventListener("click", function(event) {
+		event.preventDefault();
+		var newKey = pubKeyInput.value;
+		if (newKey === null || newKey === "")
+			newKey = null;
+
+		encryptionService.setPublicKey(newKey);
+	});
+
+	pubKeyUpdate.appendChild(document.createTextNode("Set Public Key"));
+	privKeyUpdate.appendChild(document.createTextNode("Set Private Key"));
+
+	
+	var pubHeader = document.createElement("SPAN");
+	pubHeader.appendChild(document.createTextNode("Channel public key"));
+	var privHeader = document.createElement("SPAN");
+	privHeader.appendChild(document.createTextNode("Channel private key"));
+
+	container.appendChild(pubHeader);
+	container.appendChild(pubKeyInput);
+	container.appendChild(pubKeyUpdate);
+
+	container.appendChild(privHeader);
+	container.appendChild(privKeyInput);
+	container.appendChild(privKeyUpdate);
+	container.appendChild(document.createElement("BR"));
+	container.appendChild(document.createElement("BR"));
+
+	return {container: container, privKeyInput: privKeyInput, pubKeyInput: pubKeyInput};
+}
+
+
+(function () {
     var attachments = {
-        "#post_textbox": attachToInputBox,
-        "#channel-header ul.dropdown-menu": attachToChannelHeader
+        "#post_textbox": attachInputEvent,
+        ".post-body__cell .btn": function(ele) {
+        	attachSettingsButton(ele);
+        	attachToggleButton(ele);
+        }
     };
-    var attachmentObserver = new MutationObserver(function(mutations) {
+
+    var domChangedObserver = new MutationObserver(function(mutations) {
         for (var query in attachments) {
-            if (document.querySelector(query) !== null) {
-                attachments[query]();
+        	var ele = document.querySelector(query);
+
+            if (ele !== null) {
+                attachments[query](ele);
                 delete attachments[query];
             }
         }
 
-        if (attachments.length === 0) {
-            attachmentObserver.disconnect();
-        }
-    });
-    attachmentObserver.observe(document.documentElement, {childList: true, subtree: true});
-
-    var msgReceivedObserver = new MutationObserver(function(mutations) {
-        var newMessages = document.querySelectorAll("div.post:not(.decrypted)");
+        var newMessages = document.querySelectorAll("div.post:not(.mme-processed)");
         if (newMessages.length !== 0) {
-            newMessages.forEach(decryptMessageNode);
+            newMessages.forEach(onMessageReceive);
         }
     });
-    msgReceivedObserver.observe(document.documentElement, {childList: true, subtree: true});
+    domChangedObserver.observe(document.documentElement, {childList: true, subtree: true});
+
+    GM_addStyle(".mme-processed .post__body {border-left: 2px solid red;}");
+    GM_addStyle(".secure .post__body {border-top: 2px solid green;}");
+    GM_addStyle(`.mme-settings-modal {
+    	position: fixed;
+    	bottom: 70px;
+    	right: 14px;
+    	width: 278px;
+    	height: 362px;
+
+    	overflow-y: scroll;
+    	text-align: center;
+
+    	border-radius: 6px;
+    	background-color: #F5F5F5;
+    	border: solid 1px #D8D8D8;
+    	z-index: 8;
+    }
+
+    .mme-settings-modal span {
+    	display: block;
+    	padding: 4px;
+    	width: 100%;
+    	background-color: #FEFEFE;
+    	border-top: solid 1px #D8D8D8;
+    	border-bottom: solid 1px #D8D8D8;
+    	margin-top: 4px;
+    	margin-bottom: 4px;
+    }
+
+    .mme-settings-modal span:first-child {
+    	margin-top: 0px;
+    	border-top: none;
+    }
+
+    .mme-settings-modal textarea {
+    	width: 90%;
+    	height: 140px;
+    	border: 1px solid #D8D8D8;
+    	border-radius: 2px;
+    	background-color: white;
+    	resize: none;
+    }
+
+    .mme-settings-modal button {
+    	width: 90%;
+    	height: 30px;
+    	background-color: #FAFAFA;
+    	border: 1px solid #D8D8D8;
+    	border-radius: 2px;
+    	margin: 2px;
+    }
+
+    .mme-enabled {
+    	color: #006600;
+    }
+    `);
 })();
