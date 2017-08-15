@@ -45,16 +45,17 @@ MessageHandler.prototype.updateSettings = function(settings) {
 	this.publicKey = settings.publicKey;
 	this.encryptionHandler.setDecryptionKey(this.privateKey);
 	this.encryptionHandler.setEncryptionKey(this.publicKey);
-
-	if (this.privateKey === null || this.publicKey === null)
-		this.enabled = false;
 };
 MessageHandler.prototype.processInputMessage = function(msg) {
-    if (!this.enabled && this.publicKey !== null)
+    if (!this.enabled || this.publicKey === null)
         return null;
 
     this.lastSentMessage = msg;
-    return "AA//" + this.encryptionHandler.encrypt(msg);
+    var encryptedMsg = this.encryptionHandler.encrypt(msg);
+    if (encryptedMsg === false)
+    	return null;
+
+    return "AA//" + encryptedMsg;
 };
 MessageHandler.prototype.processOwnMessage = function(msg) {
     if (this.isEncryptedMessage(msg)) {
@@ -70,7 +71,9 @@ MessageHandler.prototype.processOwnMessage = function(msg) {
 MessageHandler.prototype.processReceivedMessage = function(msg) {
     if (this.isEncryptedMessage(msg)) {
         if (this.privateKey) {
-            return this.encryptionHandler.decrypt(msg);
+            var decryptedMsg = this.encryptionHandler.decrypt(msg);
+            if (decryptedMsg !== false)
+            	return decryptedMsg;
         }
         return "(unknown)";
     }
@@ -331,9 +334,33 @@ function buildSettingsModal() {
     });
     domChangedObserver.observe(document.documentElement, {childList: true, subtree: true});
 
-    GM_addStyle(".mme-processed .post__body {border-left: 2px solid red;}");
-    GM_addStyle(".secure .post__body {border-top: 2px solid green;}");
-    GM_addStyle(`.mme-settings-modal {
+    GM_addStyle(`
+    .mme-processed .post__body {
+    	border-left: 2px solid red;
+    }
+    .secure .post__body {
+    	border-top: 2px solid green;
+    }
+
+    .post.secure .post__body::after {
+    	content: "\\f21b" !important;
+    	visibility: visible !important;
+    	height: auto !important;
+		font-family: FontAwesome;
+		color: #AFAFAF;
+		position: absolute;
+		right: -12px;
+    }
+
+    .post.secure.other--root .post__body::after {
+		top: 26px;
+    }
+
+    .post.secure.same--root .post__body::after {
+		top: 6px;
+    }
+
+	.mme-settings-modal {
     	position: fixed;
     	bottom: 70px;
     	right: 14px;
