@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Mattermost Encryption
-// @namespace    http://tampermonkey.net/
+// @namespace    https://github.com/dcrn
 // @version      0.1
-// @description  try to take over the world!
-// @author       You
+// @description  Add encryption to mattermost
+// @author       dcrn
 // @match        http://localhost:8065/*
+// @updateURL    https://github.com/dcrn/mattermost-encryption/raw/master/mattermost_encryption.user.js
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addStyle
