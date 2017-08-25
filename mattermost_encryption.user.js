@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mattermost Encryption
 // @namespace    https://github.com/dcrn
-// @version      1.1
+// @version      1.2
 // @description  Add encryption to mattermost
 // @author       dcrn
 // @match        http://localhost:8065/*
@@ -192,8 +192,9 @@ function onMessageReceive(messageElement) {
 
 	var msg = textElement.nodeValue;
 	var newMsg = null;
-	if (messageElement.id.indexOf(":") >= 0) {
+	if (messageElement.id.indexOf("_undefined") >= 0) {
 		textElement.nodeValue = lastPlaintextMessage;
+		lastPlaintextMessage = null;
 		return;
 	} else if (messageElement.classList.contains("current--user")) {
 		newMsg = encryptionService.getMessageHandler().processOwnMessage(msg);
