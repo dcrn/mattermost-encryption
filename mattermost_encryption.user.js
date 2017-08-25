@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mattermost Encryption
 // @namespace    https://github.com/dcrn
-// @version      1.0
+// @version      1.1
 // @description  Add encryption to mattermost
 // @author       dcrn
 // @match        http://localhost:8065/*
@@ -48,13 +48,13 @@ MessageHandler.prototype.processInputMessage = function(msg) {
     if (!this.enabled || this.publicKey === null)
         return null;
 
-    this.lastSentMessage = msg;
     var encryptedMsg = this.encryptionHandler.encrypt(msg);
     if (encryptedMsg === false) {
     	window.console.log("Unable to encrypt message; invalid key");
     	return null;
     }
 
+    this.lastSentMessage = msg;
     return "AA//" + encryptedMsg;
 };
 MessageHandler.prototype.processOwnMessage = function(msg) {
@@ -374,7 +374,7 @@ function buildSettingsModal() {
 		font-family: FontAwesome;
 		color: #AFAFAF;
 		position: absolute;
-		right: -12px;
+		right: 12px;
     }
 
     .post.secure.other--root .post__body::after {
