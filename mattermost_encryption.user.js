@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mattermost Encryption
 // @namespace    https://github.com/dcrn
-// @version      1.2
+// @version      1.3
 // @description  Add encryption to mattermost
 // @author       dcrn
 // @match        http://localhost:8065/*
