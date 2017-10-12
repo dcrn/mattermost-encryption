@@ -192,7 +192,7 @@ function onMessageReceive(messageElement) {
 
 	var msg = textElement.nodeValue;
 	var newMsg = null;
-	if (messageElement.id.indexOf("_undefined") >= 0) {
+	if (messageElement.id.indexOf(":") >= 0 || messageElement.id.indexOf("_undefined") >= 0) {
 		textElement.nodeValue = lastPlaintextMessage;
 		lastPlaintextMessage = null;
 		return;
