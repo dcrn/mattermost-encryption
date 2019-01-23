@@ -12,7 +12,6 @@
 // @require      https://raw.githubusercontent.com/travist/jsencrypt/master/bin/jsencrypt.min.js
 // ==/UserScript==
 
-
 function EncryptionHandler() {
     this.encryption = new JSEncrypt();
     this.decryption = new JSEncrypt();
@@ -38,11 +37,11 @@ function MessageHandler() {
     this.encryptionHandler = new EncryptionHandler();
 }
 MessageHandler.prototype.updateSettings = function(settings) {
-	this.enabled = settings.enabled !== null ? settings.enabled : false;
-	this.privateKey = settings.privateKey;
-	this.publicKey = settings.publicKey;
-	this.encryptionHandler.setDecryptionKey(this.privateKey);
-	this.encryptionHandler.setEncryptionKey(this.publicKey);
+    this.enabled = settings.enabled !== null ? settings.enabled : false;
+    this.privateKey = settings.privateKey;
+    this.publicKey = settings.publicKey;
+    this.encryptionHandler.setDecryptionKey(this.privateKey);
+    this.encryptionHandler.setEncryptionKey(this.publicKey);
 };
 MessageHandler.prototype.processInputMessage = function(msg) {
     if (!this.enabled || this.publicKey === null)
@@ -50,8 +49,8 @@ MessageHandler.prototype.processInputMessage = function(msg) {
 
     var encryptedMsg = this.encryptionHandler.encrypt(msg);
     if (encryptedMsg === false) {
-    	window.console.log("Unable to encrypt message; invalid key");
-    	return null;
+        window.console.log("Unable to encrypt message; invalid key");
+        return null;
     }
 
     this.lastSentMessage = msg;
@@ -73,10 +72,10 @@ MessageHandler.prototype.processReceivedMessage = function(msg) {
         if (this.privateKey) {
             var decryptedMsg = this.encryptionHandler.decrypt(msg.substr(4));
             if (decryptedMsg === false)
-            	return "(unknown - invalid key)";
+                return "(unknown - invalid key)";
             if (decryptedMsg === null)
-            	return "(unknown - wrong key)";
-            
+                return "(unknown - wrong key)";
+
             return decryptedMsg;
         }
         return "(unknown)";
@@ -87,81 +86,84 @@ MessageHandler.prototype.isEncryptedMessage = function(msg) {
     try {
         atob(msg);
         return msg.substr(0, 4) === "AA//";
-    }
-    catch(ex) {
+    } catch (ex) {
         return false;
     }
 };
 
 
 function ChannelEncryptionService() {
-	this.channelName = null;
-	this.settings = {privateKey: null, publicKey: null, enabled: false};
-	this.messageHandler = new MessageHandler();
+    this.channelName = null;
+    this.settings = {
+        privateKey: null,
+        publicKey: null,
+        enabled: false
+    };
+    this.messageHandler = new MessageHandler();
 }
 ChannelEncryptionService.prototype.changeChannel = function(channelName) {
-	if (this.channelName === channelName)
-		return;
+    if (this.channelName === channelName)
+        return;
 
-	this.channelName = channelName;
-	this.loadChannelSettings();
-	this.messageHandler.updateSettings(this.settings);
+    this.channelName = channelName;
+    this.loadChannelSettings();
+    this.messageHandler.updateSettings(this.settings);
 };
 ChannelEncryptionService.prototype.loadChannelSettings = function() {
-	if (this.channelName === null) {
-		this.settings = {};
-		return;
-	}
+    if (this.channelName === null) {
+        this.settings = {};
+        return;
+    }
 
-	this.settings.enabled = GM_getValue(this.channelName + "/enabled", null);
-	this.settings.publicKey = GM_getValue(this.channelName + "/publicKey", null);
-	this.settings.privateKey = GM_getValue(this.channelName + "/privateKey", null);
+    this.settings.enabled = GM_getValue(this.channelName + "/enabled", null);
+    this.settings.publicKey = GM_getValue(this.channelName + "/publicKey", null);
+    this.settings.privateKey = GM_getValue(this.channelName + "/privateKey", null);
 };
 ChannelEncryptionService.prototype.getMessageHandler = function() {
-	return this.messageHandler;
+    return this.messageHandler;
 };
 ChannelEncryptionService.prototype.getEnabled = function() {
-	return this.settings.enabled;
+    return this.settings.enabled;
 };
 ChannelEncryptionService.prototype.setEnabled = function(enabled) {
-	if (this.channelName === null)
-		return;
+    if (this.channelName === null)
+        return;
 
-	if (enabled === true)
-		this.settings.enabled = enabled;
-	else
-		this.settings.enabled = false;
+    if (enabled === true)
+        this.settings.enabled = enabled;
+    else
+        this.settings.enabled = false;
 
-	GM_setValue(this.channelName + "/enabled", this.settings.enabled);
-	this.messageHandler.updateSettings(this.settings);
+    GM_setValue(this.channelName + "/enabled", this.settings.enabled);
+    this.messageHandler.updateSettings(this.settings);
 };
 ChannelEncryptionService.prototype.getPublicKey = function() {
-	return this.settings.publicKey;
+    return this.settings.publicKey;
 };
 ChannelEncryptionService.prototype.setPublicKey = function(publicKey) {
-	if (this.channelName === null)
-		return;
+    if (this.channelName === null)
+        return;
 
-	this.settings.publicKey = publicKey;
-	if (publicKey !== null && publicKey.length === 0)
-		this.settings.publicKey = null;
+    this.settings.publicKey = publicKey;
+    if (publicKey !== null && publicKey.length === 0)
+        this.settings.publicKey = null;
 
-	GM_setValue(this.channelName + "/publicKey", this.settings.publicKey);
-	this.messageHandler.updateSettings(this.settings);
+    GM_setValue(this.channelName + "/publicKey", this.settings.publicKey);
+    this.messageHandler.updateSettings(this.settings);
 };
 ChannelEncryptionService.prototype.getPrivateKey = function() {
-	return this.settings.privateKey;
+    return this.settings.privateKey;
 };
 ChannelEncryptionService.prototype.setPrivateKey = function(privateKey) {
-	if (this.channelName === null)
-		return;
+    if (this.channelName === null)
+        return;
 
-	this.settings.privateKey = privateKey;
-	if (privateKey !== null && privateKey.length === 0)
-		this.settings.privateKey = null;
+    this.settings.privateKey = privateKey;
+    if (privateKey !== null && privateKey.length === 0)
+        this.settings.privateKey = null;
 
-	GM_setValue(this.channelName + "/privateKey", this.settings.privateKey);
-	this.messageHandler.updateSettings(this.settings);
+    GM_setValue(this.channelName + "/privateKey", this.settings.privateKey);
+    this.messageHandler.updateSettings(this.settings);
 };
 
 
@@ -169,54 +171,73 @@ var encryptionService = new ChannelEncryptionService();
 var lastPlaintextMessage = null;
 
 function onMessageSend(inputElement) {
-	lastPlaintextMessage = inputElement.value;
+    lastPlaintextMessage = inputElement.value;
 
-	var newMsg = encryptionService
-		.getMessageHandler()
-		.processInputMessage(inputElement.value);
+    var newMsg = encryptionService
+        .getMessageHandler()
+        .processInputMessage(inputElement.value);
 
-	if (newMsg !== null) {
-		inputElement.value = newMsg;
-		inputElement.dispatchEvent(new Event(
-			"input", 
-			{bubbles: true, target: inputElement, data:newMsg}
-		));
-	}
+    if (newMsg !== null) {
+        inputElement.value = newMsg;
+        inputElement.dispatchEvent(new Event(
+            "input", {
+                bubbles: true,
+                target: inputElement,
+                data: newMsg
+            }
+        ));
+    }
 }
 
 function onMessageReceive(messageElement) {
-	messageElement.classList.add("mme-processed");
-	var textElement = getTextElement(messageElement);
-	if (textElement === null)
-		return;
+    messageElement.classList.add("mme-processed");
+    var textElement = getTextElement(messageElement);
+    if (textElement === null)
+        return;
 
-	var msg = textElement.nodeValue;
-	var newMsg = null;
-	if (messageElement.id.indexOf(":") >= 0 || messageElement.id.indexOf("_undefined") >= 0) {
-		textElement.nodeValue = lastPlaintextMessage;
-		lastPlaintextMessage = null;
-		return;
-	} else if (messageElement.classList.contains("current--user")) {
-		newMsg = encryptionService.getMessageHandler().processOwnMessage(msg);
-	} else {
-		newMsg = encryptionService.getMessageHandler().processReceivedMessage(msg);
-	}
+    var msg = textElement.nodeValue;
+    var newMsg = null;
+    if (messageElement.id.indexOf(":") >= 0 || messageElement.id.indexOf("_undefined") >= 0) {
+        textElement.nodeValue = lastPlaintextMessage;
+        lastPlaintextMessage = null;
+        return;
+    } else if (messageElement.classList.contains("current--user")) {
+        newMsg = encryptionService.getMessageHandler().processOwnMessage(msg);
+    } else {
+        newMsg = encryptionService.getMessageHandler().processReceivedMessage(msg);
+    }
 
-	if (newMsg !== null) {
-		messageElement.classList.add("secure");
-		textElement.nodeValue = newMsg;
-	}
+    if (newMsg !== null) {
+        messageElement.classList.add("secure");
+        textElement.nodeValue = newMsg;
+    }
 }
 
 function onChannelChanged(channelName) {
-	encryptionService.changeChannel(channelName);
-	var toggleButton = document.getElementById("mme-toggle-button");
-	var settingsContainer = document.getElementById("mme-settings-container");
+    encryptionService.changeChannel(channelName);
+    var toggleButton = document.getElementById("mme-toggle-button");
+    var settingsContainer = document.getElementById("mme-settings-container");
 
-	if (toggleButton !== null)
-		toggleButton.classList.toggle("mme-enabled", encryptionService.getEnabled());
-	if (settingsContainer !== null)
-		settingsContainer.classList.toggle("hidden", true);
+    if (toggleButton !== null)
+        toggleButton.classList.toggle("mme-enabled", encryptionService.getEnabled());
+    if (settingsContainer !== null)
+        settingsContainer.classList.toggle("hidden", true);
+}
+
+function onKeyDown(event) {
+    if (event.key === "Control") {
+        encryptionService.setEnabled(true);
+        var toggleButton = document.getElementById("mme-toggle-button");
+        toggleButton.classList.toggle("mme-enabled", encryptionService.getEnabled());
+    }
+}
+
+function onKeyUp(event) {
+    if (event.key === "Control") {
+        encryptionService.setEnabled(false);
+        var toggleButton = document.getElementById("mme-toggle-button");
+        toggleButton.classList.toggle("mme-enabled", encryptionService.getEnabled());
+    }
 }
 
 function getTextElement(messageElement) {
@@ -230,115 +251,118 @@ function getTextElement(messageElement) {
 
 
 function attachInputEvent(element) {
-	element.addEventListener("keydown", function(keyEvent) {
-		if (keyEvent.keycode === 13 || keyEvent.which === 13) {
-			onMessageSend(keyEvent.target);
-		}
-	});
+    element.addEventListener("keydown", function(keyEvent) {
+        if (keyEvent.keycode === 13 || keyEvent.which === 13) {
+            onMessageSend(keyEvent.target);
+        }
+    });
 
-	return true;
+    return true;
 }
 
 function attachToggleButton(element) {
-	var button = document.createElement("SPAN");
-	button.id = "mme-toggle-button";
-	button.classList.add("fa");
-	button.classList.add("fa-user-secret");
-	button.classList.add("icon--emoji-picker");
+    var button = document.createElement("SPAN");
+    button.id = "mme-toggle-button";
+    button.classList.add("fa");
+    button.classList.add("fa-user-secret");
+    button.classList.add("icon--emoji-picker");
 
-	button.classList.toggle("mme-enabled", encryptionService.getEnabled());
+    button.classList.toggle("mme-enabled", encryptionService.getEnabled());
 
     button.addEventListener("click", function(event) {
-    	encryptionService.setEnabled(!encryptionService.getEnabled());
-    	button.classList.toggle("mme-enabled", encryptionService.getEnabled());
-	});
+        encryptionService.setEnabled(!encryptionService.getEnabled());
+        button.classList.toggle("mme-enabled", encryptionService.getEnabled());
+    });
 
     element.appendChild(button);
 }
 
 function attachSettingsButton(element) {
-	var button = document.createElement("SPAN");
-	button.classList.add("fa");
-	button.classList.add("fa-puzzle-piece");
-	button.classList.add("icon--emoji-picker");
+    var button = document.createElement("SPAN");
+    button.classList.add("fa");
+    button.classList.add("fa-puzzle-piece");
+    button.classList.add("icon--emoji-picker");
 
     var settingsModal = buildSettingsModal();
     settingsModal.container.classList.add("hidden");
     document.body.appendChild(settingsModal.container);
 
     button.addEventListener("click", function(event) {
-    	if (settingsModal.container.classList.toggle("hidden") === false) {
-	    	var privKey = encryptionService.getPrivateKey();
-	    	if (privKey === null)
-	    		privKey = "";
-	    	var pubKey = encryptionService.getPublicKey();
-	    	if (pubKey === null)
-	    		pubKey = "";
+        if (settingsModal.container.classList.toggle("hidden") === false) {
+            var privKey = encryptionService.getPrivateKey();
+            if (privKey === null)
+                privKey = "";
+            var pubKey = encryptionService.getPublicKey();
+            if (pubKey === null)
+                pubKey = "";
 
-	    	settingsModal.privKeyInput.value = privKey;
-	    	settingsModal.pubKeyInput.value = pubKey;
-	    }
+            settingsModal.privKeyInput.value = privKey;
+            settingsModal.pubKeyInput.value = pubKey;
+        }
     });
 
     element.appendChild(button);
 }
 
 function buildSettingsModal() {
-	var container = document.createElement("DIV");
-	var pubKeyInput = document.createElement("TEXTAREA");
-	var privKeyInput = document.createElement("TEXTAREA");
-	var pubKeyUpdate = document.createElement("BUTTON");
-	var privKeyUpdate = document.createElement("BUTTON");
+    var container = document.createElement("DIV");
+    var pubKeyInput = document.createElement("TEXTAREA");
+    var privKeyInput = document.createElement("TEXTAREA");
+    var pubKeyUpdate = document.createElement("BUTTON");
+    var privKeyUpdate = document.createElement("BUTTON");
 
-	container.id = "mme-settings-container";
+    container.id = "mme-settings-container";
 
-	privKeyUpdate.addEventListener("click", function(event) {
-		event.preventDefault();
-		var newKey = privKeyInput.value;
-		if (newKey === null || newKey === "")
-			newKey = null;
+    privKeyUpdate.addEventListener("click", function(event) {
+        event.preventDefault();
+        var newKey = privKeyInput.value;
+        if (newKey === null || newKey === "")
+            newKey = null;
 
-		encryptionService.setPrivateKey(newKey);
-	});
+        encryptionService.setPrivateKey(newKey);
+    });
 
-	pubKeyUpdate.addEventListener("click", function(event) {
-		event.preventDefault();
-		var newKey = pubKeyInput.value;
-		if (newKey === null || newKey === "")
-			newKey = null;
+    pubKeyUpdate.addEventListener("click", function(event) {
+        event.preventDefault();
+        var newKey = pubKeyInput.value;
+        if (newKey === null || newKey === "")
+            newKey = null;
 
-		encryptionService.setPublicKey(newKey);
-	});
+        encryptionService.setPublicKey(newKey);
+    });
 
-	pubKeyUpdate.appendChild(document.createTextNode("Set Public Key"));
-	privKeyUpdate.appendChild(document.createTextNode("Set Private Key"));
+    pubKeyUpdate.appendChild(document.createTextNode("Set Public Key"));
+    privKeyUpdate.appendChild(document.createTextNode("Set Private Key"));
 
-	
-	var pubHeader = document.createElement("SPAN");
-	pubHeader.appendChild(document.createTextNode("Channel public key"));
-	var privHeader = document.createElement("SPAN");
-	privHeader.appendChild(document.createTextNode("Channel private key"));
+    var pubHeader = document.createElement("SPAN");
+    pubHeader.appendChild(document.createTextNode("Channel public key"));
+    var privHeader = document.createElement("SPAN");
+    privHeader.appendChild(document.createTextNode("Channel private key"));
 
-	container.appendChild(pubHeader);
-	container.appendChild(pubKeyInput);
-	container.appendChild(pubKeyUpdate);
+    container.appendChild(pubHeader);
+    container.appendChild(pubKeyInput);
+    container.appendChild(pubKeyUpdate);
 
-	container.appendChild(privHeader);
-	container.appendChild(privKeyInput);
-	container.appendChild(privKeyUpdate);
-	container.appendChild(document.createElement("BR"));
-	container.appendChild(document.createElement("BR"));
+    container.appendChild(privHeader);
+    container.appendChild(privKeyInput);
+    container.appendChild(privKeyUpdate);
+    container.appendChild(document.createElement("BR"));
+    container.appendChild(document.createElement("BR"));
 
-	return {container: container, privKeyInput: privKeyInput, pubKeyInput: pubKeyInput};
+    return {
+        container: container,
+        privKeyInput: privKeyInput,
+        pubKeyInput: pubKeyInput
+    };
 }
 
 
-(function () {
+(function() {
     var attachments = {
         "#post_textbox": attachInputEvent,
         ".post-body__cell .btn": function(ele) {
-        	attachSettingsButton(ele);
-        	attachToggleButton(ele);
+            attachSettingsButton(ele);
+            attachToggleButton(ele);
         }
     };
 
@@ -346,13 +370,13 @@ function buildSettingsModal() {
     onChannelChanged(lastPath);
 
     var domChangedObserver = new MutationObserver(function(mutations) {
-		if (window.location.pathname != lastPath) {
-			lastPath = window.location.pathname;
-			onChannelChanged(lastPath);
-		}
+        if (window.location.pathname != lastPath) {
+            lastPath = window.location.pathname;
+            onChannelChanged(lastPath);
+        }
 
         for (var query in attachments) {
-        	var ele = document.querySelector(query);
+            var ele = document.querySelector(query);
 
             if (ele !== null) {
                 attachments[query](ele);
@@ -365,7 +389,13 @@ function buildSettingsModal() {
             newMessages.forEach(onMessageReceive);
         }
     });
-    domChangedObserver.observe(document.documentElement, {childList: true, subtree: true});
+    domChangedObserver.observe(document.documentElement, {
+        childList: true,
+        subtree: true
+    });
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
 
     GM_addStyle(`
     .post.secure .post__body::after {
