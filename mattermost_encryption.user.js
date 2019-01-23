@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mattermost Encryption
 // @namespace    https://github.com/dcrn
-// @version      1.4
+// @version      1.5
 // @description  Add encryption to mattermost
 // @author       dcrn
 // @match        http://localhost:8065/*
@@ -224,19 +224,40 @@ function onChannelChanged(channelName) {
         settingsContainer.classList.toggle("hidden", true);
 }
 
-function onKeyDown(event) {
-    if (event.key === "Control") {
+var isModifierKeyDown = false;
+function onModifierKeyDown() {
+    if (!encryptionService.getEnabled()) {
         encryptionService.setEnabled(true);
+        isModifierKeyDown = true;
         var toggleButton = document.getElementById("mme-toggle-button");
         toggleButton.classList.toggle("mme-enabled", encryptionService.getEnabled());
     }
 }
 
-function onKeyUp(event) {
-    if (event.key === "Control") {
+function onModifierKeyUp() {
+    if (isModifierKeyDown) {
         encryptionService.setEnabled(false);
+        isModifierKeyDown = false;
         var toggleButton = document.getElementById("mme-toggle-button");
         toggleButton.classList.toggle("mme-enabled", encryptionService.getEnabled());
+    }
+}
+
+function onKeyDown(event) {
+    if (event.key === "Control") {
+        onModifierKeyDown();
+    }
+}
+
+function onKeyUp(event) {
+    if (event.key === "Control") {
+        onModifierKeyUp();
+    }
+}
+
+function onWindowBlur(event) {
+    if (!event.ctrlKey) {
+        onModifierKeyUp();
     }
 }
 
@@ -248,7 +269,6 @@ function getTextElement(messageElement) {
 
     return textElement.childNodes[0];
 }
-
 
 function attachInputEvent(element) {
     element.addEventListener("keydown", function(keyEvent) {
@@ -396,6 +416,7 @@ function buildSettingsModal() {
 
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onWindowBlur);
 
     GM_addStyle(`
     .post.secure .post__body::after {
