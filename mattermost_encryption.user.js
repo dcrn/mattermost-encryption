@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mattermost Encryption
 // @namespace    https://github.com/dcrn
-// @version      1.5
+// @version      1.6
 // @description  Add encryption to mattermost
 // @author       dcrn
 // @match        http://localhost:8065/*
@@ -28,6 +28,12 @@ EncryptionHandler.prototype.encrypt = function(msg) {
 EncryptionHandler.prototype.decrypt = function(msg) {
     return this.decryption.decrypt(msg);
 };
+EncryptionHandler.prototype.getEncryptionKeySize = function() {
+    return this.encryption.getKey().n.bitLength() / 8;
+};
+EncryptionHandler.prototype.getDecryptionKeySize = function() {
+    return this.decryption.getKey().n.bitLength() / 8;
+};
 
 
 function MessageHandler() {
@@ -43,18 +49,32 @@ MessageHandler.prototype.updateSettings = function(settings) {
     this.encryptionHandler.setDecryptionKey(this.privateKey);
     this.encryptionHandler.setEncryptionKey(this.publicKey);
 };
+MessageHandler.prototype.chunkInputMessage = function(msg) {
+    const chunkSize = this.encryptionHandler.getEncryptionKeySize() - 11;
+    const numChunks = Math.ceil(msg.length / chunkSize);
+    let chunks = new Array(numChunks);
+
+    for (let i = 0, o = 0; i < numChunks; ++i, o += chunkSize) {
+        chunks[i] = msg.substr(o, chunkSize);
+    }
+    return chunks;
+}
 MessageHandler.prototype.processInputMessage = function(msg) {
     if (!this.enabled || this.publicKey === null)
         return null;
 
-    var encryptedMsg = this.encryptionHandler.encrypt(msg);
-    if (encryptedMsg === false) {
-        window.console.log("Unable to encrypt message; invalid key");
-        return null;
+    var msgChunks = this.chunkInputMessage(msg);
+    var encryptedChunks = new Array(msgChunks.length);
+    for (let i = 0; i < msgChunks.length; i++) {
+        encryptedChunks[i] = this.encryptionHandler.encrypt(msgChunks[i]);
+        if (encryptedChunks[i] === false) {
+            window.console.log("Unable to encrypt message; invalid key");
+            return null;
+        }
     }
 
     this.lastSentMessage = msg;
-    return "AA//" + encryptedMsg;
+    return "AA//" + encryptedChunks.join("~");
 };
 MessageHandler.prototype.processOwnMessage = function(msg) {
     if (this.isEncryptedMessage(msg)) {
@@ -70,13 +90,18 @@ MessageHandler.prototype.processOwnMessage = function(msg) {
 MessageHandler.prototype.processReceivedMessage = function(msg) {
     if (this.isEncryptedMessage(msg)) {
         if (this.privateKey) {
-            var decryptedMsg = this.encryptionHandler.decrypt(msg.substr(4));
-            if (decryptedMsg === false)
-                return "(unknown - invalid key)";
-            if (decryptedMsg === null)
-                return "(unknown - wrong key)";
+            let chunks = msg.substr(4).split("~");
+            let decryptedChunks = new Array(chunks.length);
 
-            return decryptedMsg;
+            for (let i = 0; i < chunks.length; i++) {
+                decryptedChunks[i] = this.encryptionHandler.decrypt(chunks[i]);
+                if (decryptedChunks[i] === false)
+                    return "(unknown - invalid key)";
+                if (decryptedChunks[i] === null)
+                    return "(unknown - wrong key)";
+            }
+
+            return decryptedChunks.join("");
         }
         return "(unknown)";
     }
@@ -84,8 +109,16 @@ MessageHandler.prototype.processReceivedMessage = function(msg) {
 };
 MessageHandler.prototype.isEncryptedMessage = function(msg) {
     try {
-        atob(msg);
-        return msg.substr(0, 4) === "AA//";
+        if (msg.substr(0, 4) !== "AA//") {
+            return false;
+        }
+
+        let chunks = msg.substr(4).split("~");
+        for (let i = 0; i < chunks.length; i++) {
+            atob(chunks[i]);
+        }
+
+        return true;
     } catch (ex) {
         return false;
     }
